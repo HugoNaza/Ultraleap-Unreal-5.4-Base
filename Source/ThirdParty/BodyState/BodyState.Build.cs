@@ -47,24 +47,20 @@ public class BodyState : ModuleRules
 			);
 			
 		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-				"Engine",
-				"AnimGraphRuntime",
-				"InputCore",
-				"InputDevice",
-				"HeadMountedDisplay",
-				"Slate",
-				"SlateCore",
-            }
-			);
-
-		if (Target.Version.MajorVersion >= 5 && Target.Version.MinorVersion >= 3)
-		{
-            PrivateDependencyModuleNames.AddRange(new string[] {"XRBase"});
-        }
+                PrivateDependencyModuleNames.AddRange(
+                        new string[]
+                        {
+                                "CoreUObject",
+                                "Engine",
+                                "AnimGraphRuntime",
+                                "InputCore",
+                                "InputDevice",
+                                "HeadMountedDisplay",
+                                "Slate",
+                                "SlateCore",
+                                "XRBase",
+                        }
+                        );
 
 
             if (Target.bBuildEditor)
