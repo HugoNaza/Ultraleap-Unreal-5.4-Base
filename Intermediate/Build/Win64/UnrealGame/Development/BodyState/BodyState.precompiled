@@ -1,0 +1,21 @@
+{
+	"OutputFiles": [
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\Module.BodyState.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\AnimNode_ModifyBodyStateMappedBones.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateAnimInstance.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateBoneComponent.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateBPLibrary.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateDevice.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateDeviceConfig.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateEstimatorComponent.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateHMDDevice.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateHMDSnapshot.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateSkeletonStorage.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateUtility.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\FBodyState.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\FBodyStateInputDevice.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateArm.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateBone.cpp.obj",
+		"..\\..\\..\\x64\\UnrealGame\\Development\\BodyState\\BodyStateSkeleton.cpp.obj"
+	]
+}
