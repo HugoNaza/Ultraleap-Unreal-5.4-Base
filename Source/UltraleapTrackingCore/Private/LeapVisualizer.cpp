@@ -12,12 +12,45 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
+#include "Modules/ModuleManager.h"
+
+#if WITH_NIAGARA
+namespace LeapVisualizerInternal
+{
+        static UNiagaraSystem* LoadNiagaraSystem(const FSoftObjectPath& SystemPath, const TCHAR* AssetDebugName)
+        {
+                if (!SystemPath.IsValid())
+                {
+                        UE_LOG(UltraleapTrackingLog, Warning,
+                                TEXT("Invalid Niagara system path provided for %s"), AssetDebugName);
+                        return nullptr;
+                }
+
+                if (!FModuleManager::Get().IsModuleLoaded(TEXT("Niagara")))
+                {
+                        FModuleManager::Get().LoadModule(TEXT("Niagara"));
+                }
+
+                UObject* const LoadedObject = SystemPath.TryLoad();
+                UNiagaraSystem* const NiagaraSystem = Cast<UNiagaraSystem>(LoadedObject);
+                if (NiagaraSystem == nullptr)
+                {
+                        UE_LOG(UltraleapTrackingLog, Error, TEXT("Failed to load Niagara system %s from %s"), AssetDebugName,
+                                *SystemPath.ToString());
+                }
+
+                return NiagaraSystem;
+        }
+}
+#endif // WITH_NIAGARA
 
 // Sets default values
-ALeapVisualizer::ALeapVisualizer() 
-	: NSPlayerAreaBounds(nullptr)
-	, NSPTeleportRing(nullptr)
-	, Root(nullptr)
+ALeapVisualizer::ALeapVisualizer()
+        : NSPlayerAreaBounds(nullptr)
+        , NSPTeleportRing(nullptr)
+        , PlayerAreaBoundsSystemPath(TEXT("NiagaraSystem'/UltraleapTracking/InteractionEngine/VFX/Leap_NS_PlayAreaBounds.Leap_NS_PlayAreaBounds'"))
+        , TeleportRingSystemPath(TEXT("NiagaraSystem'/UltraleapTracking/InteractionEngine/VFX/Leap_NS_TeleportRing.Leap_NS_TeleportRing'"))
+        , Root(nullptr)
 	, PlayerAreaBoundsComponent(nullptr)
 	, TeleportRingComponent(nullptr)
 	, LeapPawn(nullptr)
@@ -30,48 +63,50 @@ ALeapVisualizer::ALeapVisualizer()
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent = Root;
 
-	NSPlayerAreaBounds = Cast<UNiagaraSystem>(StaticLoadObject(UNiagaraSystem::StaticClass(), nullptr,
-		TEXT("NiagaraSystem'/UltraleapTracking/InteractionEngine/VFX/Leap_NS_PlayAreaBounds.Leap_NS_PlayAreaBounds'")));
-	if (NSPlayerAreaBounds == nullptr)
-	{
-		UE_LOG(UltraleapTrackingLog, Error, TEXT("NSPlayerAreaBounds is nullptr in ALeapVisualizer()"));
-	}
+        PlayerAreaBoundsComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraAreaBoundsComponent"));
+        TeleportRingComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraTeleportRingComponent"));
 
-	NSPTeleportRing = Cast<UNiagaraSystem>(StaticLoadObject(UNiagaraSystem::StaticClass(), nullptr,
-		TEXT("NiagaraSystem'/UltraleapTracking/InteractionEngine/VFX/Leap_NS_TeleportRing.Leap_NS_TeleportRing'")));
+        if (!PlayerAreaBoundsComponent || !TeleportRingComponent)
+        {
+                UE_LOG(UltraleapTrackingLog, Error, TEXT("Failed to create Niagara components in ALeapVisualizer()."));
+        }
 
-	if (NSPTeleportRing == nullptr)
-	{
-		UE_LOG(UltraleapTrackingLog, Error, TEXT("NSPTeleportRing is nullptr in ALeapVisualizer()"));
-	}
+        if (RootComponent)
+        {
+                PlayerAreaBoundsComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+                TeleportRingComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+        }
 
-	PlayerAreaBoundsComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraAreaBoundsComponent"));
-	TeleportRingComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraTeleportRingComponent"));
+}
 
-	if (!PlayerAreaBoundsComponent || !TeleportRingComponent)
-	{
-		UE_LOG(UltraleapTrackingLog, Error, TEXT("NSPTeleportRing is nullptr in ALeapVisualizer()"));
-	}
+// Called when the actor components have been created
+void ALeapVisualizer::PostInitializeComponents()
+{
+        Super::PostInitializeComponents();
 
-	if (RootComponent)
-	{
-		PlayerAreaBoundsComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		TeleportRingComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-	}
-
-	PlayerAreaBoundsComponent->SetAsset(NSPlayerAreaBounds); 
-	TeleportRingComponent->SetAsset(NSPTeleportRing);
-
+#if WITH_NIAGARA
+        EnsureNiagaraSystemsLoaded();
+#endif
 }
 
 // Called when the game starts or when spawned
 void ALeapVisualizer::BeginPlay()
 {
-	Super::BeginPlay();
+        Super::BeginPlay();
 
-	FVector2D PlayerArea = UHeadMountedDisplayFunctionLibrary::GetPlayAreaBounds();
-	FVector PlayerVec = FVector(PlayerArea.X, PlayerArea.Y, 0.0f);
-	PlayerAreaBoundsComponent->SetNiagaraVariableVec3("User.PlayAreaBounds", PlayerVec);
+#if WITH_NIAGARA
+        EnsureNiagaraSystemsLoaded();
+#endif
+
+        FVector2D PlayerArea = UHeadMountedDisplayFunctionLibrary::GetPlayAreaBounds();
+        FVector PlayerVec = FVector(PlayerArea.X, PlayerArea.Y, 0.0f);
+
+#if WITH_NIAGARA
+        if (PlayerAreaBoundsComponent != nullptr)
+        {
+                PlayerAreaBoundsComponent->SetVariableVec3(TEXT("User.PlayAreaBounds"), PlayerVec);
+        }
+#endif
 
 	World = GetWorld();
 	if (World == nullptr)
@@ -93,3 +128,28 @@ void ALeapVisualizer::BeginPlay()
 		return;
 	}
 }
+
+#if WITH_NIAGARA
+void ALeapVisualizer::EnsureNiagaraSystemsLoaded()
+{
+        if (PlayerAreaBoundsComponent != nullptr && NSPlayerAreaBounds == nullptr)
+        {
+                NSPlayerAreaBounds = LeapVisualizerInternal::LoadNiagaraSystem(
+                        PlayerAreaBoundsSystemPath, TEXT("NSPlayerAreaBounds"));
+                if (NSPlayerAreaBounds != nullptr)
+                {
+                        PlayerAreaBoundsComponent->SetAsset(NSPlayerAreaBounds);
+                }
+        }
+
+        if (TeleportRingComponent != nullptr && NSPTeleportRing == nullptr)
+        {
+                NSPTeleportRing = LeapVisualizerInternal::LoadNiagaraSystem(
+                        TeleportRingSystemPath, TEXT("NSPTeleportRing"));
+                if (NSPTeleportRing != nullptr)
+                {
+                        TeleportRingComponent->SetAsset(NSPTeleportRing);
+                }
+        }
+}
+#endif // WITH_NIAGARA

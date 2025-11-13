@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 14,
-	"VersionName": "5.0.1",
+"VersionName": "5.0.6",
 	"FriendlyName": "Ultraleap Tracking Plugin",
 	"Description": "Support for  Ultraleap hand tracking devices.",
 	"Category": "Input Devices",
@@ -10,9 +10,8 @@
 	"DocsURL": "https://github.com/ultraleap/UnrealPlugin#readme",
 	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/bee1e122fcae438abb50441ee6286d92",
 	"SupportURL": "",
-	"EngineVersion": "5.4.0",
-	"CanContainContent": true,
-	"Installed": true,
+        "CanContainContent": true,
+        "Installed": true,
 	"Modules": [
 		{
 			"Name": "UltraleapTracking",
@@ -48,10 +47,14 @@
 			]
 		}
 	],
-	"Plugins": [
-		{
-			"Name": "Niagara",
-			"Enabled": true
-		}
-	]
+        "Plugins": [
+                {
+                        "Name": "Niagara",
+                        "Enabled": true
+                },
+                {
+                        "Name": "XRBase",
+                        "Enabled": true
+                }
+        ]
 }
