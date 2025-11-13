@@ -9,10 +9,25 @@
 #include "UltraleapIEFunctionLibrary.h"
 
 #include "Engine/World.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/SkeletalBodySetup.h"
 
 TArray<USkeletalBodySetup*> UUltraleapIEFunctionLibrary::GetSkeletalBodySetups(UPhysicsAsset* PhysicsAsset)
 {
-	return PhysicsAsset->SkeletalBodySetups;
+        TArray<USkeletalBodySetup*> Result;
+
+        if (PhysicsAsset == nullptr)
+        {
+                return Result;
+        }
+
+        Result.Reserve(PhysicsAsset->SkeletalBodySetups.Num());
+        for (USkeletalBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+        {
+                Result.Add(BodySetup);
+        }
+
+        return Result;
 }
 bool UUltraleapIEFunctionLibrary::EnableBodyBoundsByName(
 	UPhysicsAsset* PhysicsAsset, const FName& BoneName, const bool Enable, const bool Update)
@@ -27,8 +42,14 @@ bool UUltraleapIEFunctionLibrary::EnableBodyBoundsByName(
 	{
 		return false;
 	}
-	check(PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex));
-	PhysicsAsset->SkeletalBodySetups[BodyIndex]->bConsiderForBounds = Enable;
+        check(PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex));
+        USkeletalBodySetup* const BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
+        if (BodySetup == nullptr)
+        {
+                return false;
+        }
+
+        BodySetup->bConsiderForBounds = Enable;
 
 	if (Update)
 	{
@@ -51,11 +72,15 @@ bool UUltraleapIEFunctionLibrary::EnableBodyCollisionByName(
 	{
 		return false;
 	}
-	const int32 PrimitiveIndex = 0;
-	check(PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex));
+        check(PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex));
+        USkeletalBodySetup* const BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
+        if (BodySetup == nullptr)
+        {
+                return false;
+        }
 
-	PhysicsAsset->SkeletalBodySetups[BodyIndex]->CollisionReponse = BodyCollisionResponse;
-	return true;
+        BodySetup->CollisionReponse = BodyCollisionResponse;
+        return true;
 }
 void UUltraleapIEFunctionLibrary::UpdateBoundsBodiesArray(UPhysicsAsset* PhysicsAsset)
 {
@@ -72,7 +97,13 @@ FName UUltraleapIEFunctionLibrary::GetBodyName(UPhysicsAsset* PhysicsAsset, cons
 		return FName();
 	}
 
-	return PhysicsAsset->SkeletalBodySetups[BodyIndex]->BoneName;
+        check(PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex));
+        if (USkeletalBodySetup* const BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex])
+        {
+                return BodySetup->BoneName;
+        }
+
+        return FName();
 }
 void UUltraleapIEFunctionLibrary::InitPhysicsConstraint(UPhysicsConstraintComponent* PhysicsConstraintComponent)
 {
