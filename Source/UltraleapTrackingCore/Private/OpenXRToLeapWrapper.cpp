@@ -550,10 +550,27 @@ LEAP_TRACKING_EVENT* FOpenXRToLeapWrapper::GetFrame()
 	// these are in world space
 	//
 	// IMPORTANT: OpenXR tracking only works in VR mode, this will always return false in desktop mode
-	bool StatusLeft = HandTracker->GetAllKeypointStates(EControllerHand::Left, OutPositions[0], OutRotations[0], OutRadii[0]);
-	bool StatusRight = HandTracker->GetAllKeypointStates(EControllerHand::Right, OutPositions[1], OutRotations[1], OutRadii[1]);
+        bool bLeftTracked = false;
+        bool bRightTracked = false;
 
-	DummyLeapFrame.nHands = StatusLeft + StatusRight;
+#if (ENGINE_MAJOR_VERSION > 5) || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 6)
+        const bool bLeftStatus = HandTracker->GetAllKeypointStates(
+                EControllerHand::Left, OutPositions[0], OutRotations[0], OutRadii[0], bLeftTracked);
+        const bool bRightStatus = HandTracker->GetAllKeypointStates(
+                EControllerHand::Right, OutPositions[1], OutRotations[1], OutRadii[1], bRightTracked);
+#else
+        const bool bLeftStatus = HandTracker->GetAllKeypointStates(
+                EControllerHand::Left, OutPositions[0], OutRotations[0], OutRadii[0]);
+        const bool bRightStatus = HandTracker->GetAllKeypointStates(
+                EControllerHand::Right, OutPositions[1], OutRotations[1], OutRadii[1]);
+        bLeftTracked = bLeftStatus;
+        bRightTracked = bRightStatus;
+#endif
+
+        const bool bLeftHandValid = bLeftStatus && bLeftTracked;
+        const bool bRightHandValid = bRightStatus && bRightTracked;
+
+        DummyLeapFrame.nHands = (bLeftHandValid ? 1 : 0) + (bRightHandValid ? 1 : 0);
 	DummyLeapFrame.info.frame_id++;
 	UWorld* World = nullptr;
 
@@ -561,21 +578,21 @@ LEAP_TRACKING_EVENT* FOpenXRToLeapWrapper::GetFrame()
 	DummyLeapFrame.info.timestamp = GetDummyLeapTime();
 	DummyLeapFrame.tracking_frame_id++;
 
-	if (!StatusLeft)
-	{
-		DummyLeapFrame.pHands = &DummyLeapHands[1];
-	}
-	else
-	{
-		DummyLeapFrame.pHands = &DummyLeapHands[0];
-	}
+        if (!bLeftHandValid)
+        {
+                DummyLeapFrame.pHands = &DummyLeapHands[1];
+        }
+        else
+        {
+                DummyLeapFrame.pHands = &DummyLeapHands[0];
+        }
 
-	if (StatusLeft)
-	{
-		
-		ConvertToLeapSpace(DummyLeapHands[0], OutPositions[0], OutRotations[0]);
-		// not tracking -> tracking = update hand IDs
-		if (!LeftHandVisible)
+        if (bLeftHandValid)
+        {
+
+                ConvertToLeapSpace(DummyLeapHands[0], OutPositions[0], OutRotations[0]);
+                // not tracking -> tracking = update hand IDs
+                if (!LeftHandVisible)
 		{
 			LeftHandVisible = true;
 			DummyLeapHands[0].id = HandID++;
@@ -586,12 +603,12 @@ LEAP_TRACKING_EVENT* FOpenXRToLeapWrapper::GetFrame()
 	{
 		LeftHandVisible = false;
 	}
-	if (StatusRight)
-	{
-		ConvertToLeapSpace(DummyLeapHands[1], OutPositions[1], OutRotations[1]);
-		// not tracking -> tracking = update hand IDs
-		if (!RightHandVisible)
-		{
+        if (bRightHandValid)
+        {
+                ConvertToLeapSpace(DummyLeapHands[1], OutPositions[1], OutRotations[1]);
+                // not tracking -> tracking = update hand IDs
+                if (!RightHandVisible)
+                {
 			RightHandVisible = true;
 			DummyLeapHands[1].id = HandID++;
 			FirstSeenRight = GetGameTimeInSeconds();

@@ -131,23 +131,19 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-            if (Target.Version.MajorVersion >= 5 && Target.Version.MinorVersion >= 3)
-            {
-                PrivateDependencyModuleNames.AddRange(new string[] { "XRBase" });
-            }
-
             PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"Json",
-					"JsonUtilities",
-					"NiagaraCore",
-					"Niagara",
-					"NiagaraShader",
-					"NavigationSystem",
-					// ... add private dependencies that you statically link with here ...
+                                new string[]
+                                {
+                                        "Json",
+                                        "JsonUtilities",
+                                        "NiagaraCore",
+                                        "Niagara",
+                                        "NiagaraShader",
+                                        "NavigationSystem",
+                                        "XRBase",
+                                        // ... add private dependencies that you statically link with here ...
                 }
-				);
+                                );
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[]
