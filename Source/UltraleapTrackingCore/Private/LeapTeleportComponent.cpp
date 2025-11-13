@@ -11,31 +11,31 @@
 #include "LeapUtility.h"
 #include "LeapVisualizer.h"
 #include "LeapHandActor.h"
+#include "Modules/ModuleManager.h"
 
 // Sets default values for this component's properties
-ULeapTeleportComponent::ULeapTeleportComponent() 
-	: LocalTeleportLaunchSpeed(1000)
-	, bValidTeleportationLocation(false)
-	, bTeleportTraceActive(false)
-	, bTeleportOnce(true)
+ULeapTeleportComponent::ULeapTeleportComponent()
+        : LocalTeleportLaunchSpeed(1000)
+        , bValidTeleportationLocation(false)
+        , bTeleportTraceActive(false)
+        , bTeleportOnce(true)
+        , TeleportTraceSystemPath(TEXT("NiagaraSystem'/UltraleapTracking/InteractionEngine/VFX/Leap_NS_TeleportTrace.Leap_NS_TeleportTrace'"))
+        , LeapTeleportTraceNS(nullptr)
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	LeapTeleportTraceNS = Cast<UNiagaraSystem>(StaticLoadObject(UNiagaraSystem::StaticClass(), nullptr,
-		TEXT("NiagaraSystem'/UltraleapTracking/InteractionEngine/VFX/Leap_NS_TeleportTrace.Leap_NS_TeleportTrace'")));
-	if (LeapTeleportTraceNS == nullptr)
-	{
-		UE_LOG(UltraleapTrackingLog, Error, TEXT("LeapTeleportTraceNS is nullptr in ULeapTeleportComponent()"));
-	}
+        // Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
+        // off to improve performance if you don't need them.
+        PrimaryComponentTick.bCanEverTick = true;
 }
 
 
 // Called when the game starts
 void ULeapTeleportComponent::BeginPlay()
 {
-	Super::BeginPlay();
+        Super::BeginPlay();
+
+#if WITH_NIAGARA
+        EnsureTeleportTraceSystemLoaded();
+#endif
 
 	WorldContextObject = GetWorld();
 
@@ -78,12 +78,20 @@ void ULeapTeleportComponent::BeginPlay()
 
 void ULeapTeleportComponent::StartTeleportTrace()
 {
-	bTeleportTraceActive = true;
+#if WITH_NIAGARA
+        EnsureTeleportTraceSystemLoaded();
+        if (LeapTeleportTraceNS == nullptr)
+        {
+                UE_LOG(UltraleapTrackingLog, Error, TEXT("Unable to start teleport trace - Niagara system is unavailable."));
+                return;
+        }
 
-	FVector Location = FVector::ZeroVector;
-	FRotator Rotation = FRotator::ZeroRotator;
+        bTeleportTraceActive = true;
 
-	TeleportTraceNSComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(WorldContextObject, LeapTeleportTraceNS, Location, Rotation);
+        FVector Location = FVector::ZeroVector;
+        FRotator Rotation = FRotator::ZeroRotator;
+
+        TeleportTraceNSComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(WorldContextObject, LeapTeleportTraceNS, Location, Rotation);
 
 	if (!TeleportTraceNSComponent)
 	{
@@ -105,7 +113,10 @@ void ULeapTeleportComponent::StartTeleportTrace()
 		return;
 	}
 
-	TeleportVisualizerReference->AttachToActor(Owner, FAttachmentTransformRules::KeepWorldTransform);
+        TeleportVisualizerReference->AttachToActor(Owner, FAttachmentTransformRules::KeepWorldTransform);
+#else
+        UE_LOG(UltraleapTrackingLog, Warning, TEXT("Niagara is disabled - teleport trace cannot be started."));
+#endif
 }
 
 bool ULeapTeleportComponent::IsValidTeleportLocation(FHitResult OutHit, FNavLocation &OutLocation)
@@ -116,8 +127,8 @@ bool ULeapTeleportComponent::IsValidTeleportLocation(FHitResult OutHit, FNavLoca
 
 void ULeapTeleportComponent::TeleportTrace(const FVector Location, const FVector Direction)
 {
-	FHitResult OutHit;
-	TArray<FVector> OutPathPositions;
+        FHitResult OutHit;
+        TArray<FVector> OutPathPositions;
 	FVector OutLastTraceDestination;
 	FVector StartPos = Location; 
 	FVector LaunchVelocity = Direction * LocalTeleportLaunchSpeed;
@@ -149,9 +160,16 @@ void ULeapTeleportComponent::TeleportTrace(const FVector Location, const FVector
 		ProjectedTeleportLocation = FVector(OutLocation.Location.X, OutLocation.Location.Y, OutLocation.Location.Z - LocalNavMeshCellHeight);
 	}
 
-	TeleportVisualizerReference->SetActorLocation(ProjectedTeleportLocation);
-	const FName OverrideName = FName(TEXT("User.PointArray"));
-	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(TeleportTraceNSComponent, OverrideName, OutPathPositions);
+        TeleportVisualizerReference->SetActorLocation(ProjectedTeleportLocation);
+
+#if WITH_NIAGARA
+        if (TeleportTraceNSComponent != nullptr)
+        {
+                const FName OverrideName = FName(TEXT("User.PointArray"));
+                UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(
+                        TeleportTraceNSComponent, OverrideName, OutPathPositions);
+        }
+#endif
 }
 
 void ULeapTeleportComponent::TryTeleport()
@@ -179,16 +197,45 @@ void ULeapTeleportComponent::TryTeleport()
 
 void ULeapTeleportComponent::EndTeleportTrace()
 {
-	bTeleportTraceActive = false;
-	if (TeleportTraceNSComponent)
-	{
-		TeleportTraceNSComponent->DestroyComponent();
-	}
-	if (TeleportVisualizerReference)
-	{
-		TeleportVisualizerReference->Destroy();
-	}
+        bTeleportTraceActive = false;
+        if (TeleportTraceNSComponent)
+        {
+                TeleportTraceNSComponent->DestroyComponent();
+        }
+        if (TeleportVisualizerReference)
+        {
+                TeleportVisualizerReference->Destroy();
+        }
 }
+
+#if WITH_NIAGARA
+void ULeapTeleportComponent::EnsureTeleportTraceSystemLoaded()
+{
+        if (LeapTeleportTraceNS != nullptr)
+        {
+                return;
+        }
+
+        if (!TeleportTraceSystemPath.IsValid())
+        {
+                UE_LOG(UltraleapTrackingLog, Warning, TEXT("Teleport trace Niagara system path is invalid."));
+                return;
+        }
+
+        if (!FModuleManager::Get().IsModuleLoaded(TEXT("Niagara")))
+        {
+                FModuleManager::Get().LoadModule(TEXT("Niagara"));
+        }
+
+        UObject* const LoadedObject = TeleportTraceSystemPath.TryLoad();
+        LeapTeleportTraceNS = Cast<UNiagaraSystem>(LoadedObject);
+        if (LeapTeleportTraceNS == nullptr)
+        {
+                UE_LOG(UltraleapTrackingLog, Error, TEXT("Failed to load teleport trace Niagara system from %s"),
+                        *TeleportTraceSystemPath.ToString());
+        }
+}
+#endif // WITH_NIAGARA
 
 
 void ULeapTeleportComponent::OnLeapGrabAction(FVector Location, FVector ForwardVec)

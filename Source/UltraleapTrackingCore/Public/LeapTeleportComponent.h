@@ -17,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
+#include "UObject/SoftObjectPath.h"
 
 #include "LeapTeleportComponent.generated.h"
 
@@ -80,20 +81,25 @@ public:
 	AActor* TeleportVisualizerReference;
 
 private:
-	bool IsValidTeleportLocation(FHitResult OutHit, FNavLocation& OutLocation);
+        bool IsValidTeleportLocation(FHitResult OutHit, FNavLocation& OutLocation);
 
-private: 
+private:
 
-	UNiagaraSystem* LeapTeleportTraceNS;
-	UNiagaraComponent *TeleportTraceNSComponent;
-	bool bValidTeleportationLocation;
-	bool bTeleportTraceActive;
-	FVector TeleportProjectPointToNavigationQueryExtent;
-	FVector ProjectedTeleportLocation;
+        FSoftObjectPath TeleportTraceSystemPath;
+        UNiagaraSystem* LeapTeleportTraceNS;
+        UNiagaraComponent *TeleportTraceNSComponent;
+        bool bValidTeleportationLocation;
+        bool bTeleportTraceActive;
+        FVector TeleportProjectPointToNavigationQueryExtent;
+        FVector ProjectedTeleportLocation;
 	TArray<FVector> TeleportTracePathPositions;
 	AActor* Owner;
 	UWorld* WorldContextObject;
-	ULeapSubsystem* LeapSubsystem;
-	UNavigationSystemV1* NavSys;
-	bool bTeleportOnce;
+        ULeapSubsystem* LeapSubsystem;
+        UNavigationSystemV1* NavSys;
+        bool bTeleportOnce;
+
+#if WITH_NIAGARA
+        void EnsureTeleportTraceSystemLoaded();
+#endif
 };

@@ -12,6 +12,7 @@
 #include "GameFramework/Actor.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "UObject/SoftObjectPath.h"
 
 #if (ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 4)
 #include "Engine/World.h"
@@ -33,20 +34,27 @@ public:
 	ALeapVisualizer();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+        // Called when the game starts or when spawned
+        virtual void BeginPlay() override;
+        virtual void PostInitializeComponents() override;
 
-public:	
+public:
 
 
 private:
 
-	UNiagaraSystem* NSPlayerAreaBounds;
-	UNiagaraSystem* NSPTeleportRing;
+        UNiagaraSystem* NSPlayerAreaBounds;
+        UNiagaraSystem* NSPTeleportRing;
+        FSoftObjectPath PlayerAreaBoundsSystemPath;
+        FSoftObjectPath TeleportRingSystemPath;
 
-	USceneComponent* Root;
+#if WITH_NIAGARA
+        void EnsureNiagaraSystemsLoaded();
+#endif
 
-	UNiagaraComponent* PlayerAreaBoundsComponent;
+        USceneComponent* Root;
+
+        UNiagaraComponent* PlayerAreaBoundsComponent;
 	UNiagaraComponent* TeleportRingComponent;
 
 	APawn* LeapPawn;
